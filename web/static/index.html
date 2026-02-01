@@ -158,8 +158,10 @@ async function saveConfig() {
   try {
     const res = await fetch('/api/config/save', { method: 'POST', headers: {'Content-Type':'application/json', 'X-CSRF-Token': csrfToken}, body: JSON.stringify(config) });
     const data = await res.json();
-    if (res.ok) toast(data.message || 'Saved!');
-    else toast(data.message || 'Save failed', true);
+    if (res.ok) {
+      if (data.csrf_token) csrfToken = data.csrf_token;
+      toast(data.message || 'Saved!');
+    } else toast(data.message || 'Save failed', true);
   } catch(e) { toast('Save failed: ' + e.message, true); }
 }
 

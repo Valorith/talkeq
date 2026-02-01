@@ -156,8 +156,10 @@ func (w *Web) Connect(ctx context.Context) error {
 	mux.HandleFunc("/api/config/save", securityHeaders(w.basicAuth(w.handleConfigSave)))
 
 	w.server = &http.Server{
-		Addr:    w.config.Host,
-		Handler: mux,
+		Addr:         w.config.Host,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
 	tlog.Infof("[web] dashboard listening on %s...", w.config.Host)
@@ -348,18 +350,14 @@ func (w *Web) handleConfigSave(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit body size at the stream level to prevent memory exhaustion
+	r.Body = http.MaxBytesReader(rw, r.Body, 1024*64)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(rw, "failed to read body", http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	// Limit body size
-	if len(body) > 1024*64 {
 		http.Error(rw, "request body too large", http.StatusRequestEntityTooLarge)
 		return
 	}
+	defer r.Body.Close()
 
 	var req configSaveRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -416,8 +414,19 @@ func (w *Web) handleConfigSave(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Rotate CSRF token after successful save
+	newTokenBytes := make([]byte, 32)
+	if _, err := rand.Read(newTokenBytes); err != nil {
+		http.Error(rw, "failed to generate new csrf token", http.StatusInternalServerError)
+		return
+	}
+	w.mutex.Lock()
+	w.csrfToken = hex.EncodeToString(newTokenBytes)
+	newToken := w.csrfToken
+	w.mutex.Unlock()
+
 	rw.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(rw).Encode(map[string]string{"status": "ok", "message": "Config saved. Restart TalkEQ for changes to take effect."})
+	json.NewEncoder(rw).Encode(map[string]string{"status": "ok", "message": "Config saved. Restart TalkEQ for changes to take effect.", "csrf_token": newToken})
 }
 
 // sanitizeConfigValue strips control characters and trims whitespace from user-provided config values
