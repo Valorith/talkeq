@@ -26,6 +26,7 @@ type Config struct {
 	EQLog                         EQLog     `toml:"eqlog" desc:"EQ Log is used to parse everquest client logs. Primarily for live EQ, non server owners"`
 	PEQEditor                     PEQEditor `toml:"peq_editor"`
 	SQLReport                     SQLReport `toml:"sql_report" desc:"SQL Report can be used to show stats on discord\n# An ideal way to set this up is create a private voice channel\n# Then bind it to various queries"`
+	Webhook                       Webhook   `toml:"webhook" desc:"Webhook allows external services to POST messages into EQ channels via HTTP API"`
 }
 
 // Trigger is a regex pattern matching
@@ -150,6 +151,9 @@ func (c *Config) Verify() error {
 	if err := c.Telnet.Verify(); err != nil {
 		return fmt.Errorf("telnet: %w", err)
 	}
+	if err := c.Webhook.Verify(); err != nil {
+		return fmt.Errorf("webhook: %w", err)
+	}
 	return nil
 }
 
@@ -174,6 +178,9 @@ func getDefaultConfig() Config {
 		UsersDatabasePath:  "talkeq_users.txt",
 		GuildsDatabasePath: "talkeq_guilds.txt",
 	}
+	cfg.Webhook.IsEnabled = false
+	cfg.Webhook.Host = "127.0.0.1:9934"
+
 	cfg.API.IsEnabled = true
 	cfg.API.Host = ":9933"
 	cfg.API.APIRegister.IsEnabled = true
