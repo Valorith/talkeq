@@ -144,12 +144,9 @@ func (t *Discord) Connect(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: Get this working
-	if 1 == 0 {
-		err = t.whoRegister()
-		if err != nil {
-			return fmt.Errorf("whoRegister: %w", err)
-		}
+	err = t.whoRegister()
+	if err != nil {
+		tlog.Warnf("[discord] whoRegister failed (non-fatal): %s", err)
 	}
 
 	return nil
