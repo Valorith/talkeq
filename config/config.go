@@ -196,6 +196,7 @@ func getDefaultConfig() Config {
 	cfg.Telnet.ItemURL = "http://everquest.allakhazam.com/db/item.html?item="
 	cfg.Telnet.IsServerAnnounceEnabled = true
 	cfg.Telnet.IsOOCAuctionEnabled = true
+	cfg.Telnet.IsAuctionEmbedsEnabled = true
 	cfg.Telnet.Routes = append(cfg.Telnet.Routes, Route{
 		IsEnabled: true,
 		Trigger: Trigger{

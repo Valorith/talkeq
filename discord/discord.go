@@ -245,6 +245,34 @@ func (t *Discord) Send(req request.DiscordSend) error {
 	return nil
 }
 
+// SendEmbed sends a rich embed message to discord
+func (t *Discord) SendEmbed(req request.DiscordSendEmbed) error {
+	if !t.config.IsEnabled {
+		return fmt.Errorf("not enabled")
+	}
+
+	if !t.isConnected {
+		return fmt.Errorf("not connected")
+	}
+
+	embed, ok := req.Embed.(*discordgo.MessageEmbed)
+	if !ok {
+		return fmt.Errorf("invalid embed type")
+	}
+
+	msg, err := t.conn.ChannelMessageSendComplex(req.ChannelID, &discordgo.MessageSend{
+		Content:         req.Message,
+		Embeds:          []*discordgo.MessageEmbed{embed},
+		AllowedMentions: &discordgo.MessageAllowedMentions{},
+	})
+	if err != nil {
+		return fmt.Errorf("ChannelMessageSendEmbed: %w", err)
+	}
+	t.lastMessageID = msg.ID
+	t.lastChannelID = msg.ChannelID
+	return nil
+}
+
 // Subscribe listens for new events on discord
 func (t *Discord) Subscribe(ctx context.Context, onMessage func(interface{}) error) error {
 	t.mu.Lock()

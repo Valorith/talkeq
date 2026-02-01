@@ -39,6 +39,14 @@ type EQLog struct {
 	ToName             string
 }
 
+// DiscordSendEmbed Request sends a rich embed to discord
+type DiscordSendEmbed struct {
+	Ctx       context.Context
+	ChannelID string
+	Embed     interface{} // *discordgo.MessageEmbed
+	Message   string      // optional fallback text
+}
+
 // TelnetSend request
 type TelnetSend struct {
 	Ctx     context.Context

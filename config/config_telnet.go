@@ -21,6 +21,8 @@ type Telnet struct {
 	ProfileURL              string  `toml:"profile_url" desc:"Optional. Converts a character's name to a profile URL (e.g. Magelo link). Example: https://retributioneq.com/magelo/index.php?page=character&char= ."`
 	IsServerAnnounceEnabled bool    `toml:"announce_server_status" desc:"Optional. Annunce when a server changes state to OOC channel (Server UP/Down)"`
 	IsOOCAuctionEnabled     bool    `toml:"convert_ooc_auction" desc:"if a OOC message uses prefix WTS or WTB, convert them into auction"`
+	IsAuctionEmbedsEnabled  bool    `toml:"auction_embeds" desc:"if true, auction messages (WTS/WTB) are sent as rich Discord embeds with parsed items and prices"`
+	AuctionChannelID        string  `toml:"auction_channel_id" desc:"Optional dedicated Discord channel ID for auction embeds. If empty, uses the route's channel_id"`
 }
 
 // TelnetEntry represents telnet event pattern detection
