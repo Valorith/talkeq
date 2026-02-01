@@ -26,6 +26,7 @@ type Config struct {
 	EQLog                         EQLog     `toml:"eqlog" desc:"EQ Log is used to parse everquest client logs. Primarily for live EQ, non server owners"`
 	PEQEditor                     PEQEditor `toml:"peq_editor"`
 	SQLReport                     SQLReport `toml:"sql_report" desc:"SQL Report can be used to show stats on discord\n# An ideal way to set this up is create a private voice channel\n# Then bind it to various queries"`
+	Raid                          Raid      `toml:"raid" desc:"Raid attendance integration with CW Raid Manager\n# Detects raid dumps from telnet or file, parses attendance, and posts to CW Raid Manager API"`
 }
 
 // Trigger is a regex pattern matching
@@ -149,6 +150,9 @@ func (c *Config) Verify() error {
 	}
 	if err := c.Telnet.Verify(); err != nil {
 		return fmt.Errorf("telnet: %w", err)
+	}
+	if err := c.Raid.Verify(); err != nil {
+		return fmt.Errorf("raid: %w", err)
 	}
 	return nil
 }
@@ -341,5 +345,14 @@ func getDefaultConfig() Config {
 	cfg.SQLReport.Username = "eqemu"
 	cfg.SQLReport.Password = "eqemu"
 	cfg.SQLReport.Database = "eqemu"
+
+	cfg.Raid.IsEnabled = false
+	cfg.Raid.APIURL = "https://raids.example.com"
+	cfg.Raid.APIToken = "YOUR_JWT_TOKEN_HERE"
+	cfg.Raid.RaidEventID = "RAID_EVENT_ID_HERE"
+	cfg.Raid.DiscordChannelID = "INSERTRAIDCHANNELHERE"
+	cfg.Raid.TelnetDumpCommand = "#raidlist"
+	cfg.Raid.AutoPost = true
+	cfg.Raid.NotifyDiscord = true
 	return cfg
 }
