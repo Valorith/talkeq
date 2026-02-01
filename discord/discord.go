@@ -223,6 +223,31 @@ func (t *Discord) Disconnect(ctx context.Context) error {
 	return nil
 }
 
+// SendEmbed sends a rich embed message to discord
+func (t *Discord) SendEmbed(req request.DiscordEmbed) error {
+	if !t.config.IsEnabled {
+		return fmt.Errorf("not enabled")
+	}
+	if !t.isConnected {
+		return fmt.Errorf("not connected")
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title:       req.Title,
+		Description: req.Description,
+		Color:       req.Color,
+		Timestamp:   time.Now().Format(time.RFC3339),
+	}
+
+	msg, err := t.conn.ChannelMessageSendEmbed(req.ChannelID, embed)
+	if err != nil {
+		return fmt.Errorf("ChannelMessageSendEmbed: %w", err)
+	}
+	t.lastMessageID = msg.ID
+	t.lastChannelID = msg.ChannelID
+	return nil
+}
+
 // Send sends a message to discord
 func (t *Discord) Send(req request.DiscordSend) error {
 	if !t.config.IsEnabled {

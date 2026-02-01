@@ -98,15 +98,52 @@ func CharactersOnline(filter string) string {
 	return content
 }
 
-// SetCharacters sets the character db to provided argument
-func SetCharacters(req map[string]*Character) error {
+// PlayerChange represents a player coming online or going offline
+type PlayerChange struct {
+	Name   string
+	Class  string
+	Level  int
+	Zone   string
+	Online bool // true = logged in, false = logged off
+}
+
+// SetCharacters sets the character db to provided argument and returns changes
+func SetCharacters(req map[string]*Character) ([]PlayerChange, error) {
 	mu.Lock()
 	defer mu.Unlock()
+
+	var changes []PlayerChange
+
+	// Detect new players (online now but not before)
+	for name, char := range req {
+		if _, existed := characters[name]; !existed {
+			changes = append(changes, PlayerChange{
+				Name:   char.Name,
+				Class:  char.Class,
+				Level:  char.Level,
+				Zone:   char.Zone,
+				Online: true,
+			})
+		}
+	}
+
+	// Detect departed players (were online but not anymore)
+	for name, char := range characters {
+		if _, exists := req[name]; !exists {
+			changes = append(changes, PlayerChange{
+				Name:   char.Name,
+				Class:  char.Class,
+				Level:  char.Level,
+				Zone:   char.Zone,
+				Online: false,
+			})
+		}
+	}
 
 	characters = req
 	onlineCount = len(characters)
 	tlog.Debugf("[characterdb] onlineCount is %d", onlineCount)
-	return nil
+	return changes, nil
 }
 
 // CharactersOnlineCount returns how many characters are reported online

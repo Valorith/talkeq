@@ -276,6 +276,9 @@ func getDefaultConfig() Config {
 		MessagePattern: "{{.Name}} **GUILD**: {{.Message}}",
 	})
 
+	cfg.Telnet.PlayerNotifications.IsEnabled = false
+	cfg.Telnet.PlayerNotifications.ChannelID = "INSERTNOTIFICATIONSCHANNELHERE"
+
 	cfg.EQLog.Path = `c:\Program Files\Everquest\Logs\eqlog_CharacterName_Server.txt`
 	cfg.EQLog.Routes = append(cfg.EQLog.Routes, Route{
 		IsEnabled: true,
