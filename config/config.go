@@ -26,6 +26,7 @@ type Config struct {
 	EQLog                         EQLog     `toml:"eqlog" desc:"EQ Log is used to parse everquest client logs. Primarily for live EQ, non server owners"`
 	PEQEditor                     PEQEditor `toml:"peq_editor"`
 	SQLReport                     SQLReport `toml:"sql_report" desc:"SQL Report can be used to show stats on discord\n# An ideal way to set this up is create a private voice channel\n# Then bind it to various queries"`
+	Webhook                       Webhook   `toml:"webhook" desc:"Webhook is a service that allows external tools to POST messages into EQ channels via HTTP"`
 	Web                           Web       `toml:"web" desc:"Web Dashboard provides a browser-based UI for viewing and editing TalkEQ configuration"`
 }
 

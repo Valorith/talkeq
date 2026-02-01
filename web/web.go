@@ -238,6 +238,10 @@ type configResponse struct {
 	SQLReportHost    string `json:"sqlreport_host"`
 	SQLReportDatabase string `json:"sqlreport_database"`
 
+	WebhookEnabled bool   `json:"webhook_enabled"`
+	WebhookHost    string `json:"webhook_host"`
+	WebhookToken   string `json:"webhook_token"`
+
 	WebEnabled bool   `json:"web_enabled"`
 	WebHost    string `json:"web_host"`
 }
@@ -285,6 +289,10 @@ func (w *Web) handleConfig(rw http.ResponseWriter, r *http.Request) {
 		SQLReportHost:     sanitize(cfg.SQLReport.Host),
 		SQLReportDatabase: sanitize(cfg.SQLReport.Database),
 
+		WebhookEnabled: cfg.Webhook.IsEnabled,
+		WebhookHost:    sanitize(cfg.Webhook.Host),
+		WebhookToken:   maskToken(cfg.Webhook.Token),
+
 		WebEnabled: cfg.Web.IsEnabled,
 		WebHost:    sanitize(cfg.Web.Host),
 	}
@@ -327,6 +335,9 @@ type configSaveRequest struct {
 	TelnetHost     *string `json:"telnet_host,omitempty"`
 	APIEnabled     *bool   `json:"api_enabled,omitempty"`
 	APIHost        *string `json:"api_host,omitempty"`
+	WebhookEnabled *bool   `json:"webhook_enabled,omitempty"`
+	WebhookHost    *string `json:"webhook_host,omitempty"`
+	WebhookToken   *string `json:"webhook_token,omitempty"`
 	WebEnabled     *bool   `json:"web_enabled,omitempty"`
 	WebHost        *string `json:"web_host,omitempty"`
 }
@@ -391,6 +402,15 @@ func (w *Web) handleConfigSave(rw http.ResponseWriter, r *http.Request) {
 	}
 	if req.APIHost != nil {
 		cfg.API.Host = sanitizeConfigValue(*req.APIHost)
+	}
+	if req.WebhookEnabled != nil {
+		cfg.Webhook.IsEnabled = *req.WebhookEnabled
+	}
+	if req.WebhookHost != nil {
+		cfg.Webhook.Host = sanitizeConfigValue(*req.WebhookHost)
+	}
+	if req.WebhookToken != nil {
+		cfg.Webhook.Token = sanitizeConfigValue(*req.WebhookToken)
 	}
 	if req.WebEnabled != nil {
 		cfg.Web.IsEnabled = *req.WebEnabled

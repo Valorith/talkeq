@@ -117,6 +117,11 @@ function render() {
       { label: 'Host', key: 'sqlreport_host', type: 'readonly' },
       { label: 'Database', key: 'sqlreport_database', type: 'readonly' },
     ]},
+    { title: 'Webhook', fields: [
+      { label: 'Enabled', key: 'webhook_enabled', type: 'bool' },
+      { label: 'Host', key: 'webhook_host', type: 'text', placeholder: '127.0.0.1:9934' },
+      { label: 'Token', key: 'webhook_token', type: 'password' },
+    ]},
     { title: 'Web Dashboard', fields: [
       { label: 'Enabled', key: 'web_enabled', type: 'bool' },
       { label: 'Host', key: 'web_host', type: 'text' },
@@ -143,7 +148,8 @@ function render() {
 function fieldHTML(f) {
   const v = config[f.key];
   if (f.type === 'bool') return `<select data-key="${escapeHtml(f.key)}" onchange="config['${escapeHtml(f.key)}']=(this.value==='true')"><option value="true" ${v?'selected':''}>true</option><option value="false" ${!v?'selected':''}>false</option></select>`;
-  if (f.type === 'text') return `<input type="text" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v||'')}" onchange="config['${escapeHtml(f.key)}']=this.value">`;
+  if (f.type === 'text') return `<input type="text" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v||'')}" ${f.placeholder?'placeholder="'+escapeHtml(f.placeholder)+'"':''} onchange="config['${escapeHtml(f.key)}']=this.value">`;
+  if (f.type === 'password') return `<input type="password" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v||'')}" placeholder="(unchanged)" onchange="config['${escapeHtml(f.key)}']=this.value">`;
   return `<span>${escapeHtml(v)}</span>`;
 }
 
