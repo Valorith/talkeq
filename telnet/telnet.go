@@ -167,8 +167,13 @@ func (t *Telnet) Connect(ctx context.Context) error {
 			if !route.IsEnabled {
 				continue
 			}
+			tmpl := route.MessagePatternTemplate()
+			if tmpl == nil {
+				tlog.Warnf("[telnet] route %d has nil template, skipping", routeIndex)
+				continue
+			}
 			buf := new(bytes.Buffer)
-			if err := route.MessagePatternTemplate().Execute(buf, struct {
+			if err := tmpl.Execute(buf, struct {
 				Name    string
 				Message string
 			}{
@@ -204,6 +209,15 @@ func (t *Telnet) Connect(ctx context.Context) error {
 }
 
 func (t *Telnet) loop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			tlog.Errorf("[telnet] panic recovered in loop: %v", r)
+			t.mu.Lock()
+			t.isConnected = false
+			t.mu.Unlock()
+		}
+	}()
+
 	var data []byte
 	var err error
 	var msg string
@@ -259,6 +273,11 @@ func (t *Telnet) Disconnect(ctx context.Context) error {
 		tlog.Debugf("[telnet] already disconnected, skipping disconnect")
 		return nil
 	}
+	if t.conn == nil {
+		tlog.Debugf("[telnet] connection is nil, skipping close")
+		t.isConnected = false
+		return nil
+	}
 	err := t.conn.Close()
 	if err != nil {
 		tlog.Warnf("[telnet] disconnect failed, ignoring: %s", err)
@@ -268,8 +287,13 @@ func (t *Telnet) Disconnect(ctx context.Context) error {
 	t.isConnected = false
 	if !t.isInitialState && t.config.IsServerAnnounceEnabled && len(t.subscribers) > 0 {
 		for routeIndex, route := range t.config.Routes {
+			tmpl := route.MessagePatternTemplate()
+			if tmpl == nil {
+				tlog.Warnf("[telnet] route %d has nil template, skipping", routeIndex)
+				continue
+			}
 			buf := new(bytes.Buffer)
-			if err := route.MessagePatternTemplate().Execute(buf, struct {
+			if err := tmpl.Execute(buf, struct {
 				Name    string
 				Message string
 			}{

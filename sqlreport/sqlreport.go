@@ -91,6 +91,15 @@ func (t *SQLReport) Connect(ctx context.Context) error {
 }
 
 func (t *SQLReport) loop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			tlog.Errorf("[sqlreport] panic recovered in loop: %v", r)
+			t.mutex.Lock()
+			t.isConnected = false
+			t.mutex.Unlock()
+		}
+	}()
+
 	var value string
 	nextReport := 1 * time.Second
 
