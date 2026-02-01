@@ -7,13 +7,14 @@ import (
 
 // Discord represents config settings for discord
 type Discord struct {
-	IsEnabled       bool           `toml:"enabled" desc:"Enable Discord"`
-	Token           string         `toml:"bot_token" desc:"Required. Found at https://discordapp.com/developers/ under your app's bot token area."`
-	ServerID        string         `toml:"server_id" desc:"Required. In Discord, right click the circle button representing your server, and Copy ID, and paste it here."`
-	ClientID        string         `toml:"client_id" desc:"Required. Found at https://discordapp.com/developers/ under your app's general information page, called Application ID"`
-	BotStatus       string         `toml:"bot_status" desc:"Status to show below bot. e.g. \"Playing EQ: 123 Online\"\n# {{.PlayerCount}} to show playercount"`
-	CommandChannels []string       `toml:"command_channels" desc:"Commands are parsed in provided channel ids"`
-	Routes          []DiscordRoute `toml:"routes" desc:"When a message is created in discord, how to route it"`
+	IsEnabled       bool              `toml:"enabled" desc:"Enable Discord"`
+	Token           string            `toml:"bot_token" desc:"Required. Found at https://discordapp.com/developers/ under your app's bot token area."`
+	ServerID        string            `toml:"server_id" desc:"Required. In Discord, right click the circle button representing your server, and Copy ID, and paste it here."`
+	ClientID        string            `toml:"client_id" desc:"Required. Found at https://discordapp.com/developers/ under your app's general information page, called Application ID"`
+	BotStatus       string            `toml:"bot_status" desc:"Status to show below bot. e.g. \"Playing EQ: 123 Online\"\n# {{.PlayerCount}} to show playercount"`
+	CommandChannels []string          `toml:"command_channels" desc:"Commands are parsed in provided channel ids"`
+	Channels        map[string]string `toml:"channels" desc:"Map EQ channel types to Discord channel IDs.\n# Supported keys: ooc, auction, guild, shout, broadcast, general, peqeditor\n# Example: ooc = \"123456789\"\n# Routes can reference these by using the channel type name (e.g. \"ooc\") as channel_id\n# instead of a raw Discord channel ID. If a route's channel_id doesn't match a key here,\n# it's used as a literal Discord channel ID (backwards compatible)."`
+	Routes          []DiscordRoute    `toml:"routes" desc:"When a message is created in discord, how to route it"`
 }
 
 // DiscordRoute is custom for discord triggering
@@ -31,6 +32,18 @@ type DiscordRoute struct {
 // DiscordTrigger is custom discord triggering
 type DiscordTrigger struct {
 	ChannelID string `toml:"channel_id" desc:"source channel ID to trigger event"`
+}
+
+// ResolveChannelID looks up a channel_id in the Channels map.
+// If channelID matches a key in the map, the mapped Discord channel ID is returned.
+// Otherwise, channelID is returned as-is (assumed to be a literal Discord channel ID).
+func (c *Discord) ResolveChannelID(channelID string) string {
+	if c.Channels != nil {
+		if resolved, ok := c.Channels[channelID]; ok && resolved != "" {
+			return resolved
+		}
+	}
+	return channelID
 }
 
 // Verify checks if config looks valid

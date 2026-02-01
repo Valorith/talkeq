@@ -150,7 +150,33 @@ func (c *Config) Verify() error {
 	if err := c.Telnet.Verify(); err != nil {
 		return fmt.Errorf("telnet: %w", err)
 	}
+
+	// Resolve channel type names to Discord channel IDs using discord.channels map
+	c.resolveChannelMappings()
+
 	return nil
+}
+
+// resolveChannelMappings replaces channel type names (e.g. "ooc", "auction") in route
+// channel_id fields with actual Discord channel IDs from the discord.channels map.
+// This allows users to define channel IDs once in [discord.channels] and reference them
+// by name in routes, while remaining backwards compatible with literal channel IDs.
+func (c *Config) resolveChannelMappings() {
+	if len(c.Discord.Channels) == 0 {
+		return
+	}
+	for i := range c.Telnet.Routes {
+		c.Telnet.Routes[i].ChannelID = c.Discord.ResolveChannelID(c.Telnet.Routes[i].ChannelID)
+	}
+	for i := range c.EQLog.Routes {
+		c.EQLog.Routes[i].ChannelID = c.Discord.ResolveChannelID(c.EQLog.Routes[i].ChannelID)
+	}
+	for i := range c.PEQEditor.SQL.Routes {
+		c.PEQEditor.SQL.Routes[i].ChannelID = c.Discord.ResolveChannelID(c.PEQEditor.SQL.Routes[i].ChannelID)
+	}
+	for i := range c.Discord.Routes {
+		c.Discord.Routes[i].Trigger.ChannelID = c.Discord.ResolveChannelID(c.Discord.Routes[i].Trigger.ChannelID)
+	}
 }
 
 // KeepAliveRetryDuration returns the converted retry rate
@@ -181,10 +207,19 @@ func getDefaultConfig() Config {
 
 	cfg.Discord.IsEnabled = true
 	cfg.Discord.BotStatus = "EQ: {{.PlayerCount}} Online"
+	cfg.Discord.Channels = map[string]string{
+		"ooc":       "INSERTOOCCHANNELHERE",
+		"auction":   "INSERTAUCTIONCHANNELHERE",
+		"general":   "INSERTGENERALCHANNELHERE",
+		"guild":     "INSERTGLOBALGUILDCHANNELHERE",
+		"shout":     "INSERTSHOUTCHANNELHERE",
+		"broadcast": "INSERTBROADCASTCHANNELHERE",
+		"peqeditor": "INSERTPEQEDITORLOGCHANNELHERE",
+	}
 	cfg.Discord.Routes = append(cfg.Discord.Routes, DiscordRoute{
 		IsEnabled: true,
 		Trigger: DiscordTrigger{
-			ChannelID: "INSERTOOCCHANNELHERE",
+			ChannelID: "ooc",
 		},
 		Target:         "telnet",
 		ChannelID:      "260",
@@ -204,7 +239,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTOOCCHANNELHERE",
+		ChannelID:      "ooc",
 		MessagePattern: "{{.Name}} **OOC**: {{.Message}}",
 	})
 
@@ -216,7 +251,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTAUCTIONCHANNELHERE",
+		ChannelID:      "auction",
 		MessagePattern: "{{.Name}} **auction**: {{.Message}}",
 	})
 
@@ -228,7 +263,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTGENERALCHANNELHERE",
+		ChannelID:      "general",
 		MessagePattern: "{{.Name}} **general**: {{.Message}}",
 	})
 
@@ -240,7 +275,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTOOCCHANNELHERE",
+		ChannelID:      "broadcast",
 		MessagePattern: "{{.Name}} **BROADCAST**: {{.Message}}",
 	})
 
@@ -250,7 +285,7 @@ func getDefaultConfig() Config {
 			Custom: "serverup",
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTOOCCHANNELHERE",
+		ChannelID:      "ooc",
 		MessagePattern: "**Admin ooc:** Server is now UP",
 	})
 	cfg.Telnet.Routes = append(cfg.Telnet.Routes, Route{
@@ -259,7 +294,7 @@ func getDefaultConfig() Config {
 			Custom: "serverdown",
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTOOCCHANNELHERE",
+		ChannelID:      "ooc",
 		MessagePattern: "**Admin ooc:** Server is now DOWN",
 	})
 
@@ -272,7 +307,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 3,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTGLOBALGUILDCHANNELHERE",
+		ChannelID:      "guild",
 		MessagePattern: "{{.Name}} **GUILD**: {{.Message}}",
 	})
 
@@ -285,7 +320,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTOOCCHANNELHERE",
+		ChannelID:      "ooc",
 		MessagePattern: "{{.Name}} **OOC**: {{.Message}}",
 	})
 	cfg.EQLog.Routes = append(cfg.EQLog.Routes, Route{
@@ -296,7 +331,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTAUCTIONCHANNELHERE",
+		ChannelID:      "auction",
 		MessagePattern: "{{.Name}} **AUCTION**: {{.Message}}",
 	})
 	cfg.EQLog.Routes = append(cfg.EQLog.Routes, Route{
@@ -307,7 +342,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTGENERALCHANNELHERE",
+		ChannelID:      "general",
 		MessagePattern: "{{.Name}} **OOC**: {{.Message}}",
 	})
 	cfg.EQLog.Routes = append(cfg.EQLog.Routes, Route{
@@ -318,7 +353,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 2,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERTSHOUTCHANNELHERE",
+		ChannelID:      "shout",
 		MessagePattern: "{{.Name}} **SHOUT**: {{.Message}}",
 	})
 
@@ -330,7 +365,7 @@ func getDefaultConfig() Config {
 			MessageIndex: 1,
 		},
 		Target:         "discord",
-		ChannelID:      "INSERPEQEDITORLOGCHANNELHERE",
+		ChannelID:      "peqeditor",
 		MessagePattern: "{{.Name}} **OOC**: {{.Message}}",
 	})
 
