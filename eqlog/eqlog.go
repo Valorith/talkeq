@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -120,9 +119,9 @@ func (t *EQLog) loop(ctx context.Context) {
 			if !route.IsEnabled {
 				continue
 			}
-			pattern, err := regexp.Compile(route.Trigger.Regex)
-			if err != nil {
-				tlog.Debugf("[eqlog] route %d compile failed: %s", routeIndex, err)
+			pattern := route.TriggerRegex()
+			if pattern == nil {
+				tlog.Debugf("[eqlog] route %d has no compiled regex, skipping", routeIndex)
 				continue
 			}
 			matches := pattern.FindAllStringSubmatch(line.Text, -1)
@@ -163,10 +162,10 @@ func (t *EQLog) loop(ctx context.Context) {
 				for _, s := range t.subscribers {
 					err = s(req)
 					if err != nil {
-						tlog.Warnf("[eqlog->discord subscriber %d] discordSend channelID %s message %s failed: %s", route.ChannelID, req.Message, err)
+						tlog.Warnf("[eqlog->discord] discordSend channelID %s message %s failed: %s", route.ChannelID, req.Message, err)
 						continue
 					}
-					tlog.Infof("[eqlog->discord subscriber %d] message: %s", route.ChannelID, req.Message)
+					tlog.Infof("[eqlog->discord] channelID %s message: %s", route.ChannelID, req.Message)
 				}
 			default:
 				tlog.Warnf("[eqlog] unsupported target type: %s", route.Target)

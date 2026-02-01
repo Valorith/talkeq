@@ -176,15 +176,19 @@ func (t *Discord) StatusUpdate(ctx context.Context, online int, customText strin
 		}
 		return nil
 	}
-	tmpl := template.New("online")
-	tmpl.Parse(t.config.BotStatus)
+	tmpl, err := template.New("online").Parse(t.config.BotStatus)
+	if err != nil {
+		return fmt.Errorf("parse bot status template: %w", err)
+	}
 
 	buf := new(bytes.Buffer)
-	tmpl.Execute(buf, struct {
+	if err = tmpl.Execute(buf, struct {
 		PlayerCount int
 	}{
 		online,
-	})
+	}); err != nil {
+		return fmt.Errorf("execute bot status template: %w", err)
+	}
 
 	err = t.conn.UpdateGameStatus(0, buf.String())
 	if err != nil {
@@ -329,10 +333,12 @@ func (t *Discord) Subscribe(ctx context.Context, onMessage func(interface{}) err
 	return nil
 }
 
+// nonASCIIRegex is pre-compiled to avoid recompilation on every sanitize call
+var nonASCIIRegex = regexp.MustCompile("[^\x00-\x7F]+")
+
 func sanitize(data string) string {
 	data = strings.Replace(data, `%`, "&PCT;", -1)
-	re := regexp.MustCompile("[^\x00-\x7F]+")
-	data = re.ReplaceAllString(data, "")
+	data = nonASCIIRegex.ReplaceAllString(data, "")
 	data = strings.ReplaceAll(data, "^", "")
 	return data
 }

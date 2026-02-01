@@ -109,10 +109,9 @@ func (t *Telnet) parseMessage(msg string) bool {
 		if route.Trigger.Custom != "" {
 			continue
 		}
-		pattern, err := regexp.Compile(route.Trigger.Regex)
-
-		if err != nil {
-			tlog.Debugf("[telnet] compile route %d failed: %s", routeIndex, err)
+		pattern := route.TriggerRegex()
+		if pattern == nil {
+			tlog.Debugf("[telnet] route %d has no compiled regex, skipping", routeIndex)
 			continue
 		}
 		matches := pattern.FindAllStringSubmatch(msg, -1)
@@ -175,7 +174,7 @@ func (t *Telnet) parseMessage(msg string) bool {
 				ChannelType: detectChannelType(route.MessagePattern, route.Trigger.Regex),
 			}
 			for i, s := range t.subscribers {
-				err = s(req)
+				err := s(req)
 				if err != nil {
 					tlog.Warnf("[telnet->discord subscriber %d] channelID %s message %s failed: %s", i, route.ChannelID, req.Message, err)
 					continue
