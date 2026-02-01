@@ -141,17 +141,25 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 		routes++
 		switch route.Target {
 		case "telnet":
-			req := request.TelnetSend{
-				Ctx:     ctx,
-				Message: buf.String(),
-			}
-			for _, s := range t.subscribers {
-				err := s(req)
-				if err != nil {
-					tlog.Warnf("[discord->telnet] route %d message '%s' failed: %s", routeIndex, req.Message, err)
+			// Split multi-line messages and send each line separately
+			lines := strings.Split(buf.String(), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if len(line) == 0 {
 					continue
 				}
-				tlog.Infof("[discord->telnet] route %d: %s", routeIndex, req.Message)
+				req := request.TelnetSend{
+					Ctx:     ctx,
+					Message: line,
+				}
+				for _, s := range t.subscribers {
+					err := s(req)
+					if err != nil {
+						tlog.Warnf("[discord->telnet] route %d message '%s' failed: %s", routeIndex, req.Message, err)
+						continue
+					}
+					tlog.Infof("[discord->telnet] route %d: %s", routeIndex, req.Message)
+				}
 			}
 
 		default:
@@ -163,17 +171,25 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 	if guildID > 0 {
 		routes++
 
-		req := request.TelnetSend{
-			Ctx:     ctx,
-			Message: fmt.Sprintf("guildsay %s %d %s", ign, guildID, msg),
-		}
-		for i, s := range t.subscribers {
-			err := s(req)
-			if err != nil {
-				tlog.Warnf("[discord->subscriber %d] guildID %d message %s failed: %s", i, guildID, req.Message, err)
+		// Split multi-line messages and send each line separately
+		lines := strings.Split(msg, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if len(line) == 0 {
 				continue
 			}
-			tlog.Infof("[discord->subscriber %d] guildID %d message: %s", i, guildID, req.Message)
+			req := request.TelnetSend{
+				Ctx:     ctx,
+				Message: fmt.Sprintf("guildsay %s %d %s", ign, guildID, line),
+			}
+			for i, s := range t.subscribers {
+				err := s(req)
+				if err != nil {
+					tlog.Warnf("[discord->subscriber %d] guildID %d message %s failed: %s", i, guildID, req.Message, err)
+					continue
+				}
+				tlog.Infof("[discord->subscriber %d] guildID %d message: %s", i, guildID, req.Message)
+			}
 		}
 	}
 	if routes == 0 {
