@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/xackery/talkeq/config"
 	"github.com/xackery/talkeq/request"
@@ -220,6 +221,26 @@ func (t *Discord) Disconnect(ctx context.Context) error {
 	return nil
 }
 
+// channelTypeColor maps EQ channel types to Discord embed colors
+var channelTypeColor = map[string]int{
+	"ooc":       0x3498DB, // blue
+	"auction":   0xF1C40F, // yellow
+	"guild":     0x2ECC71, // green
+	"shout":     0xE67E22, // orange
+	"broadcast": 0xE74C3C, // red
+	"general":   0x9B59B6, // purple
+}
+
+// channelTypeLabel maps EQ channel types to display labels
+var channelTypeLabel = map[string]string{
+	"ooc":       "OOC",
+	"auction":   "Auction",
+	"guild":     "Guild",
+	"shout":     "Shout",
+	"broadcast": "Broadcast",
+	"general":   "General",
+}
+
 // Send sends a message to discord
 func (t *Discord) Send(req request.DiscordSend) error {
 	if !t.config.IsEnabled {
@@ -230,6 +251,20 @@ func (t *Discord) Send(req request.DiscordSend) error {
 		return fmt.Errorf("not connected")
 	}
 
+	// If embed metadata is available, send as an embed
+	if req.PlayerName != "" && req.Content != "" {
+		msg, err := t.sendEmbed(req)
+		if err != nil {
+			// Fallback to plain text on embed failure
+			tlog.Debugf("[discord] embed send failed, falling back to plain text: %s", err)
+		} else {
+			t.lastMessageID = msg.ID
+			t.lastChannelID = msg.ChannelID
+			return nil
+		}
+	}
+
+	// Plain text fallback
 	msg, err := t.conn.ChannelMessageSendComplex(req.ChannelID, &discordgo.MessageSend{
 		Content:         req.Message,
 		AllowedMentions: &discordgo.MessageAllowedMentions{},
@@ -240,6 +275,50 @@ func (t *Discord) Send(req request.DiscordSend) error {
 	t.lastMessageID = msg.ID
 	t.lastChannelID = msg.ChannelID
 	return nil
+}
+
+// sendEmbed sends a Discord embed message
+func (t *Discord) sendEmbed(req request.DiscordSend) (*discordgo.Message, error) {
+	color := 0x3498DB // default blue
+	if c, ok := channelTypeColor[req.ChannelType]; ok {
+		color = c
+	}
+
+	label := "Chat"
+	if l, ok := channelTypeLabel[req.ChannelType]; ok {
+		label = l
+	}
+
+	// Strip markdown link from player name for author display
+	authorName := req.PlayerName
+	authorURL := ""
+	if strings.HasPrefix(authorName, "[") && strings.Contains(authorName, "](") {
+		// Extract name and URL from markdown link: [Name](<URL>)
+		parts := strings.SplitN(authorName, "](", 2)
+		if len(parts) == 2 {
+			authorName = strings.TrimPrefix(parts[0], "[")
+			authorURL = strings.TrimSuffix(strings.TrimSuffix(parts[1], ")"), ">")
+			authorURL = strings.TrimPrefix(authorURL, "<")
+		}
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Author: &discordgo.MessageEmbedAuthor{
+			Name: authorName,
+			URL:  authorURL,
+		},
+		Description: req.Content,
+		Color:       color,
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: label,
+		},
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	return t.conn.ChannelMessageSendComplex(req.ChannelID, &discordgo.MessageSend{
+		Embeds:          []*discordgo.MessageEmbed{embed},
+		AllowedMentions: &discordgo.MessageAllowedMentions{},
+	})
 }
 
 // Subscribe listens for new events on discord
