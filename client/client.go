@@ -16,6 +16,7 @@ import (
 	"github.com/xackery/talkeq/telnet"
 	"github.com/xackery/talkeq/tlog"
 	"github.com/xackery/talkeq/userdb"
+	"github.com/xackery/talkeq/web"
 )
 
 // Client wraps all talking endpoints
@@ -29,6 +30,7 @@ type Client struct {
 	sqlreport    *sqlreport.SQLReport
 	peqeditorsql *peqeditorsql.PEQEditorSQL
 	api          *api.API
+	web          *web.Web
 }
 
 // New creates a new client
@@ -113,7 +115,27 @@ func New(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("api subscribe: %w", err)
 	}
 
+	c.web, err = web.New(ctx, c.config.Web, c.config, &c)
+	if err != nil {
+		return nil, fmt.Errorf("web: %w", err)
+	}
+
 	return &c, nil
+}
+
+// IsDiscordConnected implements web.StatusProvider
+func (c *Client) IsDiscordConnected() bool {
+	return c.discord.IsConnected()
+}
+
+// IsTelnetConnected implements web.StatusProvider
+func (c *Client) IsTelnetConnected() bool {
+	return c.telnet.IsConnected()
+}
+
+// IsAPIConnected implements web.StatusProvider
+func (c *Client) IsAPIConnected() bool {
+	return c.api.IsConnected()
 }
 
 // Connect attempts to connect to all enabled endpoints
@@ -166,6 +188,14 @@ func (c *Client) Connect(ctx context.Context) error {
 			return fmt.Errorf("api connect: %w", err)
 		}
 		tlog.Warnf("[api] connect failed: %s", err)
+	}
+
+	err = c.web.Connect(ctx)
+	if err != nil {
+		if !c.config.IsKeepAliveEnabled {
+			return fmt.Errorf("web connect: %w", err)
+		}
+		tlog.Warnf("[web] connect failed: %s", err)
 	}
 
 	go c.loop(ctx)

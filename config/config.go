@@ -26,6 +26,7 @@ type Config struct {
 	EQLog                         EQLog     `toml:"eqlog" desc:"EQ Log is used to parse everquest client logs. Primarily for live EQ, non server owners"`
 	PEQEditor                     PEQEditor `toml:"peq_editor"`
 	SQLReport                     SQLReport `toml:"sql_report" desc:"SQL Report can be used to show stats on discord\n# An ideal way to set this up is create a private voice channel\n# Then bind it to various queries"`
+	Web                           Web       `toml:"web" desc:"Web Dashboard provides a browser-based UI for viewing and editing TalkEQ configuration"`
 }
 
 // Trigger is a regex pattern matching
@@ -149,6 +150,9 @@ func (c *Config) Verify() error {
 	}
 	if err := c.Telnet.Verify(); err != nil {
 		return fmt.Errorf("telnet: %w", err)
+	}
+	if err := c.Web.Verify(); err != nil {
+		return fmt.Errorf("web: %w", err)
 	}
 	return nil
 }
@@ -336,6 +340,9 @@ func getDefaultConfig() Config {
 
 	cfg.PEQEditor.SQL.Path = "/var/www/peq/peqphpeditor/logs"
 	cfg.PEQEditor.SQL.FilePattern = "sql_log_{{.Month}}-{{.Year}}.sql"
+
+	cfg.Web.IsEnabled = true
+	cfg.Web.Host = "127.0.0.1:8080"
 
 	cfg.SQLReport.Host = "127.0.0.1:3306"
 	cfg.SQLReport.Username = "eqemu"
