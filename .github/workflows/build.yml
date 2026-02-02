@@ -1,22 +1,27 @@
-name: Build Go Binaries and Prep Release
-on: [push]
+name: Build & Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
 jobs:
-  build_and_preview:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: make set-version-${{github.run_number}}
-      - run: go get ./...
-      - run: go test -tags ci,wayland ./...
-      - run: make build-all
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        if: github.ref == 'refs/heads/master'
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          repo_token: "${{secrets.GITHUB_TOKEN}}"
-          automatic_release_tag: "${{env.VERSION}}"
-          prerelease: true
-          title: "${{env.VERSION}}"
-          files: |
-            bin/talkeq-linux
-            bin/talkeq-windows.exe
-            bin/talkeq-darwin
+          go-version: '1.18'
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
