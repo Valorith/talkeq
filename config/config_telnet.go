@@ -21,6 +21,13 @@ type Telnet struct {
 	ProfileURL              string  `toml:"profile_url" desc:"Optional. Converts a character's name to a profile URL (e.g. Magelo link). Example: https://retributioneq.com/magelo/index.php?page=character&char= ."`
 	IsServerAnnounceEnabled bool    `toml:"announce_server_status" desc:"Optional. Annunce when a server changes state to OOC channel (Server UP/Down)"`
 	IsOOCAuctionEnabled     bool    `toml:"convert_ooc_auction" desc:"if a OOC message uses prefix WTS or WTB, convert them into auction"`
+	PlayerNotifications     PlayerNotifications `toml:"player_notifications" desc:"Player online/offline notification settings"`
+}
+
+// PlayerNotifications represents config for player login/logout notifications
+type PlayerNotifications struct {
+	IsEnabled bool   `toml:"enabled" desc:"Enable player online/offline notifications to Discord"`
+	ChannelID string `toml:"channel_id" desc:"Discord channel ID to post player notifications to"`
 }
 
 // TelnetEntry represents telnet event pattern detection
