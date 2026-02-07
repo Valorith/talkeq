@@ -179,6 +179,9 @@ func (t *Discord) loop(ctx context.Context) {
 
 // StatusUpdate updates the status text on discord
 func (t *Discord) StatusUpdate(ctx context.Context, online int, customText string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	var err error
 	if t.conn == nil {
 		return fmt.Errorf("discord connection is nil")
@@ -218,6 +221,9 @@ func (t *Discord) IsConnected() bool {
 // Disconnect stops a previously started connection with Discord.
 // If called while a connection is not active, returns nil
 func (t *Discord) Disconnect(ctx context.Context) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if !t.config.IsEnabled {
 		tlog.Debugf("[discord] is disabled, skipping disconnect")
 		return nil
