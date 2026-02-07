@@ -84,6 +84,15 @@ func (t *EQLog) Connect(ctx context.Context) error {
 }
 
 func (t *EQLog) loop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			tlog.Errorf("[eqlog] panic recovered in loop: %v", r)
+			t.mutex.Lock()
+			t.isConnected = false
+			t.mutex.Unlock()
+		}
+	}()
+
 	fi, err := os.Stat(t.config.Path)
 	if err != nil {
 		tlog.Warnf("[eqlog] stat polling failed: %s", err)
@@ -138,8 +147,13 @@ func (t *EQLog) loop(ctx context.Context) {
 				name = matches[0][route.Trigger.NameIndex]
 			}
 
+			tmpl := route.MessagePatternTemplate()
+			if tmpl == nil {
+				tlog.Warnf("[eqlog] route %d has nil template, skipping", routeIndex)
+				continue
+			}
 			buf := new(bytes.Buffer)
-			if err := route.MessagePatternTemplate().Execute(buf, struct {
+			if err := tmpl.Execute(buf, struct {
 				Name    string
 				Message string
 			}{

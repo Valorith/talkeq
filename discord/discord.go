@@ -156,6 +156,15 @@ func (t *Discord) Connect(ctx context.Context) error {
 }
 
 func (t *Discord) loop(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			tlog.Errorf("[discord] panic recovered in loop: %v", r)
+			t.mu.Lock()
+			t.isConnected = false
+			t.mu.Unlock()
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -170,7 +179,13 @@ func (t *Discord) loop(ctx context.Context) {
 
 // StatusUpdate updates the status text on discord
 func (t *Discord) StatusUpdate(ctx context.Context, online int, customText string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	var err error
+	if t.conn == nil {
+		return fmt.Errorf("discord connection is nil")
+	}
 	if customText != "" {
 		err = t.conn.UpdateGameStatus(0, customText)
 		if err != nil {
@@ -206,12 +221,20 @@ func (t *Discord) IsConnected() bool {
 // Disconnect stops a previously started connection with Discord.
 // If called while a connection is not active, returns nil
 func (t *Discord) Disconnect(ctx context.Context) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if !t.config.IsEnabled {
 		tlog.Debugf("[discord] is disabled, skipping disconnect")
 		return nil
 	}
 	if !t.isConnected {
 		tlog.Debugf("[discord] already disconnected, skipping disconnect")
+		return nil
+	}
+	if t.conn == nil {
+		tlog.Debugf("[discord] connection is nil, skipping close")
+		t.isConnected = false
 		return nil
 	}
 	err := t.conn.Close()
