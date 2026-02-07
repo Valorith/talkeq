@@ -190,7 +190,7 @@ func (t *Telnet) Connect(ctx context.Context) error {
 			for _, s := range t.subscribers {
 				err = s(req)
 				if err != nil {
-					tlog.Warnf("[telnet->discord subscriber %d] channelID %s message %s failed: %w", route.ChannelID, req.Message, err)
+					tlog.Warnf("[telnet->discord subscriber] channelID %s message %s failed: %s", route.ChannelID, req.Message, err)
 					continue
 				}
 				tlog.Infof("[telnet->discord] channelID %s message: %s", route.ChannelID, req.Message)

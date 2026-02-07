@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 	"sync"
 	"time"
 
@@ -185,9 +184,9 @@ func (t *PEQEditorSQL) handleMessage(ctx context.Context, line string) {
 		if !route.IsEnabled {
 			continue
 		}
-		pattern, err := regexp.Compile(route.Trigger.Regex)
-		if err != nil {
-			tlog.Debugf("[peqeditorsql] compile route %d skipped: %s", routeIndex, err)
+		pattern := route.TriggerRegex()
+		if pattern == nil {
+			tlog.Debugf("[peqeditorsql] route %d has no compiled regex, skipping", routeIndex)
 			continue
 		}
 		matches := pattern.FindAllStringSubmatch(line, -1)
@@ -223,9 +222,9 @@ func (t *PEQEditorSQL) handleMessage(ctx context.Context, line string) {
 				Message:   buf.String(),
 			}
 			for i, s := range t.subscribers {
-				err = s(req)
+				err := s(req)
 				if err != nil {
-					tlog.Warnf("[peqeditorsql->discord subscriber %d] channel %s message %s failed: %s", i, route.ChannelID, req.Message)
+					tlog.Warnf("[peqeditorsql->discord subscriber %d] channel %s message %s failed: %s", i, route.ChannelID, req.Message, err)
 					continue
 				}
 				tlog.Infof("[peqeditorsql->discord subscribe %d] channel %s message: %s", i, route.ChannelID, req.Message)

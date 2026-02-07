@@ -13,6 +13,14 @@ func (t *Discord) whoRegister() error {
 	_, err := t.conn.ApplicationCommandCreate(t.conn.State.User.ID, t.config.ServerID, &discordgo.ApplicationCommand{
 		Name:        "who",
 		Description: "get a list of players on server, can filter by zone or name with /who <filter>",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "filter",
+				Description: "filter by player name or zone (use 'all' to show everyone)",
+				Required:    false,
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("whoRegister commandCreate: %w", err)

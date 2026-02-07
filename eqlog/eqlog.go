@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/xackery/talkeq/request"
@@ -119,9 +119,9 @@ func (t *EQLog) loop(ctx context.Context) {
 			if !route.IsEnabled {
 				continue
 			}
-			pattern, err := regexp.Compile(route.Trigger.Regex)
-			if err != nil {
-				tlog.Debugf("[eqlog] route %d compile failed: %s", routeIndex, err)
+			pattern := route.TriggerRegex()
+			if pattern == nil {
+				tlog.Debugf("[eqlog] route %d has no compiled regex, skipping", routeIndex)
 				continue
 			}
 			matches := pattern.FindAllStringSubmatch(line.Text, -1)
@@ -152,17 +152,20 @@ func (t *EQLog) loop(ctx context.Context) {
 			switch route.Target {
 			case "discord":
 				req := request.DiscordSend{
-					Ctx:       ctx,
-					ChannelID: route.ChannelID,
-					Message:   buf.String(),
+					Ctx:         ctx,
+					ChannelID:   route.ChannelID,
+					Message:     buf.String(),
+					PlayerName:  name,
+					Content:     message,
+					ChannelType: detectChannelType(route.MessagePattern, route.Trigger.Regex),
 				}
 				for _, s := range t.subscribers {
 					err = s(req)
 					if err != nil {
-						tlog.Warnf("[eqlog->discord subscriber %d] discordSend channelID %s message %s failed: %s", route.ChannelID, req.Message, err)
+						tlog.Warnf("[eqlog->discord] discordSend channelID %s message %s failed: %s", route.ChannelID, req.Message, err)
 						continue
 					}
-					tlog.Infof("[eqlog->discord subscriber %d] message: %s", route.ChannelID, req.Message)
+					tlog.Infof("[eqlog->discord] channelID %s message: %s", route.ChannelID, req.Message)
 				}
 			default:
 				tlog.Warnf("[eqlog] unsupported target type: %s", route.Target)
@@ -199,4 +202,28 @@ func (t *EQLog) Subscribe(ctx context.Context, onMessage func(interface{}) error
 	defer t.mutex.Unlock()
 	t.subscribers = append(t.subscribers, onMessage)
 	return nil
+}
+
+// detectChannelType infers the EQ channel type from route patterns for embed color coding
+func detectChannelType(messagePattern string, triggerRegex string) string {
+	mp := strings.ToLower(messagePattern)
+	tr := strings.ToLower(triggerRegex)
+	combined := mp + " " + tr
+
+	switch {
+	case strings.Contains(combined, "guild"):
+		return "guild"
+	case strings.Contains(combined, "auction"):
+		return "auction"
+	case strings.Contains(combined, "shout"):
+		return "shout"
+	case strings.Contains(combined, "broadcast"):
+		return "broadcast"
+	case strings.Contains(combined, "general"):
+		return "general"
+	case strings.Contains(combined, "ooc"):
+		return "ooc"
+	default:
+		return "ooc"
+	}
 }

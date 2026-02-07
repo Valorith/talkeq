@@ -13,6 +13,30 @@ import (
 	"github.com/xackery/talkeq/tlog"
 )
 
+// detectChannelType infers the EQ channel type from route patterns for embed color coding
+func detectChannelType(messagePattern string, triggerRegex string) string {
+	mp := strings.ToLower(messagePattern)
+	tr := strings.ToLower(triggerRegex)
+	combined := mp + " " + tr
+
+	switch {
+	case strings.Contains(combined, "guild"):
+		return "guild"
+	case strings.Contains(combined, "auction"):
+		return "auction"
+	case strings.Contains(combined, "shout"):
+		return "shout"
+	case strings.Contains(combined, "broadcast"):
+		return "broadcast"
+	case strings.Contains(combined, "general"):
+		return "general"
+	case strings.Contains(combined, "ooc"):
+		return "ooc"
+	default:
+		return "ooc"
+	}
+}
+
 var (
 	// legacy item links in titanium is 6, then 39 bytes
 	itemLink39 = regexp.MustCompile(`\x12([0-9A-Z]{6})[0-9A-Z]{39}([\+()0-9A-Za-z-'` + "`" + `:.,!?* ]+)\x12`)
@@ -85,10 +109,9 @@ func (t *Telnet) parseMessage(msg string) bool {
 		if route.Trigger.Custom != "" {
 			continue
 		}
-		pattern, err := regexp.Compile(route.Trigger.Regex)
-
-		if err != nil {
-			tlog.Debugf("[telnet] compile route %d failed: %s", routeIndex, err)
+		pattern := route.TriggerRegex()
+		if pattern == nil {
+			tlog.Debugf("[telnet] route %d has no compiled regex, skipping", routeIndex)
 			continue
 		}
 		matches := pattern.FindAllStringSubmatch(msg, -1)
@@ -143,12 +166,15 @@ func (t *Telnet) parseMessage(msg string) bool {
 		switch route.Target {
 		case "discord":
 			req := request.DiscordSend{
-				Ctx:       context.Background(),
-				ChannelID: route.ChannelID,
-				Message:   buf.String(),
+				Ctx:         context.Background(),
+				ChannelID:   route.ChannelID,
+				Message:     buf.String(),
+				PlayerName:  name,
+				Content:     message,
+				ChannelType: detectChannelType(route.MessagePattern, route.Trigger.Regex),
 			}
 			for i, s := range t.subscribers {
-				err = s(req)
+				err := s(req)
 				if err != nil {
 					tlog.Warnf("[telnet->discord subscriber %d] channelID %s message %s failed: %s", i, route.ChannelID, req.Message, err)
 					continue

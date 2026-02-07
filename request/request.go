@@ -6,9 +6,12 @@ import (
 
 // DiscordSend Request
 type DiscordSend struct {
-	Ctx       context.Context
-	ChannelID string
-	Message   string
+	Ctx         context.Context
+	ChannelID   string
+	Message     string
+	PlayerName  string // Optional: player name for embed author
+	Content     string // Optional: message content for embed description
+	ChannelType string // Optional: channel type for embed color (ooc, auction, guild, shout, broadcast, general)
 }
 
 // DiscordEdit Request
