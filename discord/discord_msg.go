@@ -123,34 +123,34 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 			continue
 		}
 
-		buf := new(bytes.Buffer)
-
-		if err := route.MessagePatternTemplate().Execute(buf, struct {
-			Name      string
-			Message   string
-			ChannelID string
-		}{
-			ign,
-			msg,
-			route.ChannelID,
-		}); err != nil {
-			tlog.Warnf("[discord] execute route %d failed: %s", routeIndex, err)
-			continue
-		}
-
 		routes++
 		switch route.Target {
 		case "telnet":
-			// Split multi-line messages and send each line separately
-			lines := strings.Split(buf.String(), "\n")
+			// Split multi-line messages and execute template for each line separately
+			lines := strings.Split(msg, "\n")
 			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if len(line) == 0 {
+				trimmedLine := strings.TrimSpace(line)
+				if len(trimmedLine) == 0 {
 					continue
 				}
+
+				buf := new(bytes.Buffer)
+				if err := route.MessagePatternTemplate().Execute(buf, struct {
+					Name      string
+					Message   string
+					ChannelID string
+				}{
+					ign,
+					line,
+					route.ChannelID,
+				}); err != nil {
+					tlog.Warnf("[discord] execute route %d failed: %s", routeIndex, err)
+					continue
+				}
+
 				req := request.TelnetSend{
 					Ctx:     ctx,
-					Message: line,
+					Message: buf.String(),
 				}
 				for _, s := range t.subscribers {
 					err := s(req)
@@ -174,8 +174,8 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 		// Split multi-line messages and send each line separately
 		lines := strings.Split(msg, "\n")
 		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if len(line) == 0 {
+			trimmedLine := strings.TrimSpace(line)
+			if len(trimmedLine) == 0 {
 				continue
 			}
 			req := request.TelnetSend{
