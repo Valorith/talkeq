@@ -16,6 +16,7 @@ import (
 	"github.com/xackery/talkeq/telnet"
 	"github.com/xackery/talkeq/tlog"
 	"github.com/xackery/talkeq/userdb"
+	"github.com/xackery/talkeq/webhook"
 )
 
 // Client wraps all talking endpoints
@@ -29,6 +30,7 @@ type Client struct {
 	sqlreport    *sqlreport.SQLReport
 	peqeditorsql *peqeditorsql.PEQEditorSQL
 	api          *api.API
+	webhook      *webhook.Webhook
 }
 
 // New creates a new client
@@ -113,6 +115,17 @@ func New(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("api subscribe: %w", err)
 	}
 
+	tlog.Debugf("[talkeq] initializing Webhook")
+	c.webhook, err = webhook.New(ctx, c.config.Webhook)
+	if err != nil {
+		return nil, fmt.Errorf("webhook: %w", err)
+	}
+
+	err = c.webhook.Subscribe(ctx, c.onMessage)
+	if err != nil {
+		return nil, fmt.Errorf("webhook subscribe: %w", err)
+	}
+
 	return &c, nil
 }
 
@@ -166,6 +179,14 @@ func (c *Client) Connect(ctx context.Context) error {
 			return fmt.Errorf("api connect: %w", err)
 		}
 		tlog.Warnf("[api] connect failed: %s", err)
+	}
+
+	err = c.webhook.Connect(ctx)
+	if err != nil {
+		if !c.config.IsKeepAliveEnabled {
+			return fmt.Errorf("webhook connect: %w", err)
+		}
+		tlog.Warnf("[webhook] connect failed: %s", err)
 	}
 
 	go c.loop(ctx)
