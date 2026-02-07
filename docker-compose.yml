@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  talkeq:
+    build: .
+    image: talkeq:latest
+    container_name: talkeq
+    restart: unless-stopped
+    volumes:
+      - ./talkeq.conf:/app/talkeq.conf:ro
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    # If using telnet to connect to an EQEmu server on the host:
+    # network_mode: host
+    # Or map specific ports if API is enabled:
+    # ports:
+    #   - "8080:8080"
