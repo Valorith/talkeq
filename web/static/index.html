@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalkEQ Dashboard</title>
+<style>
+  :root { --bg: #1a1a2e; --card: #16213e; --accent: #0f3460; --highlight: #e94560; --text: #eee; --muted: #888; --green: #4caf50; --red: #f44336; --yellow: #ff9800; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .header { background: var(--accent); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--highlight); }
+  .header h1 { font-size: 1.5rem; } .header h1 span { color: var(--highlight); }
+  .header .refresh { background: var(--highlight); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+  .header .refresh:hover { opacity: 0.85; }
+  .container { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+  .status-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .status-item { background: var(--card); padding: 0.75rem 1.25rem; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 140px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; } .dot.on { background: var(--green); } .dot.off { background: var(--red); }
+  .section { background: var(--card); border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { background: var(--accent); padding: 0.75rem 1.25rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .section-header:hover { opacity: 0.9; }
+  .section-body { padding: 1.25rem; display: none; }
+  .section-body.open { display: block; }
+  .field { display: flex; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .field:last-child { border-bottom: none; }
+  .field-label { width: 180px; color: var(--muted); font-size: 0.9rem; flex-shrink: 0; }
+  .field-value { flex: 1; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+  .field-value input, .field-value select { background: var(--bg); color: var(--text); border: 1px solid var(--accent); padding: 0.35rem 0.5rem; border-radius: 4px; font-family: inherit; font-size: 0.9rem; width: 100%; max-width: 400px; }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .badge.on { background: var(--green); color: #fff; } .badge.off { background: var(--red); color: #fff; }
+  .save-bar { text-align: right; margin-top: 1rem; }
+  .save-bar button { background: var(--highlight); color: #fff; border: none; padding: 0.6rem 1.5rem; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+  .save-bar button:hover { opacity: 0.85; }
+  .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--green); color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px; display: none; z-index: 999; }
+  .toast.error { background: var(--red); }
+  .chevron { transition: transform 0.2s; } .chevron.open { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📡 <span>TalkEQ</span> Dashboard</h1>
+  <button class="refresh" onclick="loadAll()">↻ Refresh</button>
+</div>
+<div class="container">
+  <div class="status-bar" id="statusBar"></div>
+  <div id="sections"></div>
+  <div class="save-bar"><button onclick="saveConfig()">💾 Save Config</button></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let config = {};
+let status = {};
+let csrfToken = '';
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function loadAll() {
+  try {
+    const [cfgRes, stRes, csrfRes] = await Promise.all([fetch('/api/config'), fetch('/api/status'), fetch('/api/csrf-token')]);
+    config = await cfgRes.json();
+    status = await stRes.json();
+    const csrfData = await csrfRes.json();
+    csrfToken = csrfData.token || '';
+    render();
+  } catch(e) { toast('Failed to load: ' + e.message, true); }
+}
+
+function render() {
+  // Status bar
+  const sb = document.getElementById('statusBar');
+  sb.innerHTML = [
+    ['Discord', status.discord], ['Telnet', status.telnet], ['API', status.api], ['Web', status.web]
+  ].map(([n,v]) => `<div class="status-item"><div class="dot ${v?'on':'off'}"></div>${n}</div>`).join('');
+
+  // Sections
+  const sections = [
+    { title: 'General', fields: [
+      { label: 'Debug', key: 'debug', type: 'bool' },
+      { label: 'Keep Alive', key: 'keep_alive', type: 'bool' },
+      { label: 'Retry Interval', key: 'keep_alive_retry', type: 'text' },
+    ]},
+    { title: 'Discord', fields: [
+      { label: 'Enabled', key: 'discord_enabled', type: 'bool' },
+      { label: 'Bot Token', key: 'discord_token', type: 'readonly' },
+      { label: 'Server ID', key: 'discord_server_id', type: 'readonly' },
+      { label: 'Client ID', key: 'discord_client_id', type: 'readonly' },
+      { label: 'Bot Status', key: 'discord_bot_status', type: 'readonly' },
+      { label: 'Routes', key: 'discord_route_count', type: 'readonly' },
+    ]},
+    { title: 'Telnet', fields: [
+      { label: 'Enabled', key: 'telnet_enabled', type: 'bool' },
+      { label: 'Host', key: 'telnet_host', type: 'text' },
+      { label: 'Routes', key: 'telnet_route_count', type: 'readonly' },
+    ]},
+    { title: 'API', fields: [
+      { label: 'Enabled', key: 'api_enabled', type: 'bool' },
+      { label: 'Host', key: 'api_host', type: 'text' },
+    ]},
+    { title: 'EQ Log', fields: [
+      { label: 'Enabled', key: 'eqlog_enabled', type: 'readonly' },
+      { label: 'Path', key: 'eqlog_path', type: 'readonly' },
+    ]},
+    { title: 'SQL Report', fields: [
+      { label: 'Enabled', key: 'sqlreport_enabled', type: 'readonly' },
+      { label: 'Host', key: 'sqlreport_host', type: 'readonly' },
+      { label: 'Database', key: 'sqlreport_database', type: 'readonly' },
+    ]},
+    { title: 'Webhook', fields: [
+      { label: 'Enabled', key: 'webhook_enabled', type: 'bool' },
+      { label: 'Host', key: 'webhook_host', type: 'text', placeholder: '127.0.0.1:9934' },
+      { label: 'Token', key: 'webhook_token', type: 'password' },
+    ]},
+    { title: 'Web Dashboard', fields: [
+      { label: 'Enabled', key: 'web_enabled', type: 'bool' },
+      { label: 'Host', key: 'web_host', type: 'text' },
+    ]},
+  ];
+
+  document.getElementById('sections').innerHTML = sections.map((s, i) => `
+    <div class="section">
+      <div class="section-header" onclick="toggle(${i})">
+        <span><span class="chevron" id="chev${i}">▶</span> ${s.title}</span>
+        ${s.fields.find(f=>f.key.endsWith('_enabled')) ? 
+          `<span class="badge ${config[s.fields.find(f=>f.key.endsWith('_enabled')).key]?'on':'off'}">${config[s.fields.find(f=>f.key.endsWith('_enabled')).key]?'ON':'OFF'}</span>` : ''}
+      </div>
+      <div class="section-body" id="sec${i}">
+        ${s.fields.map(f => `<div class="field">
+          <div class="field-label">${f.label}</div>
+          <div class="field-value">${fieldHTML(f)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function fieldHTML(f) {
+  const v = config[f.key];
+  if (f.type === 'bool') return `<select data-key="${escapeHtml(f.key)}" onchange="config['${escapeHtml(f.key)}']=(this.value==='true')"><option value="true" ${v?'selected':''}>true</option><option value="false" ${!v?'selected':''}>false</option></select>`;
+  if (f.type === 'text') return `<input type="text" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v||'')}" ${f.placeholder?'placeholder="'+escapeHtml(f.placeholder)+'"':''} onchange="config['${escapeHtml(f.key)}']=this.value">`;
+  if (f.type === 'password') return `<input type="password" data-key="${escapeHtml(f.key)}" value="${escapeHtml(v||'')}" placeholder="(unchanged)" onchange="config['${escapeHtml(f.key)}']=this.value">`;
+  return `<span>${escapeHtml(v)}</span>`;
+}
+
+function toggle(i) {
+  const sec = document.getElementById('sec'+i);
+  const chev = document.getElementById('chev'+i);
+  sec.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+async function saveConfig() {
+  try {
+    const res = await fetch('/api/config/save', { method: 'POST', headers: {'Content-Type':'application/json', 'X-CSRF-Token': csrfToken}, body: JSON.stringify(config) });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.csrf_token) csrfToken = data.csrf_token;
+      toast(data.message || 'Saved!');
+    } else toast(data.message || 'Save failed', true);
+  } catch(e) { toast('Save failed: ' + e.message, true); }
+}
+
+loadAll();
+</script>
+</body>
+</html>
