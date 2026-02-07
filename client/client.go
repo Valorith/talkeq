@@ -11,6 +11,7 @@ import (
 	"github.com/xackery/talkeq/eqlog"
 	"github.com/xackery/talkeq/guilddb"
 	"github.com/xackery/talkeq/peqeditorsql"
+	"github.com/xackery/talkeq/raid"
 	"github.com/xackery/talkeq/request"
 	"github.com/xackery/talkeq/sqlreport"
 	"github.com/xackery/talkeq/telnet"
@@ -29,6 +30,7 @@ type Client struct {
 	sqlreport    *sqlreport.SQLReport
 	peqeditorsql *peqeditorsql.PEQEditorSQL
 	api          *api.API
+	raid         *raid.Raid
 }
 
 // New creates a new client
@@ -111,6 +113,22 @@ func New(ctx context.Context) (*Client, error) {
 	err = c.api.Subscribe(ctx, c.onMessage)
 	if err != nil {
 		return nil, fmt.Errorf("api subscribe: %w", err)
+	}
+
+	tlog.Debugf("[talkeq] initializing raid attendance")
+	c.raid, err = raid.New(ctx, c.config.Raid)
+	if err != nil {
+		return nil, fmt.Errorf("raid: %w", err)
+	}
+
+	err = c.raid.Subscribe(ctx, c.onMessage)
+	if err != nil {
+		return nil, fmt.Errorf("raid subscribe: %w", err)
+	}
+
+	// Wire telnet lines into raid attendance processor
+	if c.config.Raid.IsEnabled {
+		c.telnet.RegisterLineProcessor(c.raid.ProcessTelnetLine)
 	}
 
 	return &c, nil

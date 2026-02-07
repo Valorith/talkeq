@@ -32,10 +32,11 @@ type Telnet struct {
 	subscribers    []func(interface{}) error
 	isNewTelnet    bool
 	isInitialState bool
-	isPlayerDump   bool
-	lastPlayerDump time.Time
-	characters     map[string]*characterdb.Character
-	itemLinkCustom *regexp.Regexp
+	isPlayerDump     bool
+	lastPlayerDump   time.Time
+	characters       map[string]*characterdb.Character
+	itemLinkCustom   *regexp.Regexp
+	lineProcessors   []func(string)
 }
 
 // New creates a new telnet connect
@@ -234,6 +235,11 @@ func (t *Telnet) loop(ctx context.Context) {
 
 		tlog.Debugf("[telnet] raw echo: %s", strings.ReplaceAll(strings.ReplaceAll(msg, "\r", ""), "\n", ""))
 
+		// Feed raw lines to registered processors (e.g., raid attendance)
+		for _, proc := range t.lineProcessors {
+			proc(msg)
+		}
+
 		if t.parsePlayerEntries(msg) {
 			continue
 		}
@@ -324,6 +330,13 @@ func (t *Telnet) Subscribe(ctx context.Context, onMessage func(interface{}) erro
 	defer t.mu.Unlock()
 	t.subscribers = append(t.subscribers, onMessage)
 	return nil
+}
+
+// RegisterLineProcessor adds a callback that receives every raw telnet line
+func (t *Telnet) RegisterLineProcessor(fn func(string)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.lineProcessors = append(t.lineProcessors, fn)
 }
 
 func (t *Telnet) sendLn(s string) (err error) {
