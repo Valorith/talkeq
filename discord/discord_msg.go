@@ -129,8 +129,8 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 			// Split multi-line messages and execute template for each line separately
 			lines := strings.Split(msg, "\n")
 			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if len(line) == 0 {
+				trimmedLine := strings.TrimSpace(line)
+				if len(trimmedLine) == 0 {
 					continue
 				}
 
@@ -174,8 +174,8 @@ func (t *Discord) handleMessage(s *discordgo.Session, m *discordgo.MessageCreate
 		// Split multi-line messages and send each line separately
 		lines := strings.Split(msg, "\n")
 		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if len(line) == 0 {
+			trimmedLine := strings.TrimSpace(line)
+			if len(trimmedLine) == 0 {
 				continue
 			}
 			req := request.TelnetSend{
