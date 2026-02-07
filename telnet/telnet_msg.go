@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xackery/talkeq/auction"
 	"github.com/xackery/talkeq/guilddb"
 	"github.com/xackery/talkeq/request"
 	"github.com/xackery/talkeq/tlog"
@@ -142,6 +143,30 @@ func (t *Telnet) parseMessage(msg string) bool {
 		}
 		switch route.Target {
 		case "discord":
+			// Check if this is an auction message and embeds are enabled
+			if t.config.IsAuctionEmbedsEnabled && auction.IsAuctionMessage(message) {
+				listing := auction.Parse(matches[0][route.Trigger.NameIndex], message)
+				embed := listing.ToEmbed()
+				channelID := route.ChannelID
+				if t.config.AuctionChannelID != "" {
+					channelID = t.config.AuctionChannelID
+				}
+				embedReq := request.DiscordSendEmbed{
+					Ctx:       context.Background(),
+					ChannelID: channelID,
+					Embed:     embed,
+				}
+				for i, s := range t.subscribers {
+					err = s(embedReq)
+					if err != nil {
+						tlog.Warnf("[telnet->discord subscriber %d] channelID %s auction embed failed: %s", i, channelID, err)
+						continue
+					}
+					tlog.Infof("[telnet->discord subscribe %d] channelID %s auction embed from: %s", i, channelID, listing.Seller)
+				}
+				continue
+			}
+
 			req := request.DiscordSend{
 				Ctx:       context.Background(),
 				ChannelID: route.ChannelID,

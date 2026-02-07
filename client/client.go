@@ -242,6 +242,8 @@ func (c *Client) onMessage(rawReq interface{}) error {
 		err = c.api.Command(req)
 	case request.DiscordSend:
 		err = c.discord.Send(req)
+	case request.DiscordSendEmbed:
+		err = c.discord.SendEmbed(req)
 	case request.TelnetSend:
 		err = c.telnet.Send(req)
 	default:
